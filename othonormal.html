@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Orthonormal Basis Finder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --accent: #eef2ff;
+  --danger: #ef4444;
+  --radius: 14px;
+  --transition: 0.3s ease;
+}
+
+
+[data-theme="dark"] {
+  --bg: #020617;
+  --card: #0f172a;
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --accent: #1e293b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  transition: var(--transition);
+  padding: 40px 16px;
+}
+
+.app {
+  max-width: 960px;
+  margin: auto;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: 0 20px 40px rgba(0,0,0,.15);
+  animation: fadeIn 0.6s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+h1 {
+  font-size: 1.9rem;
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: .95rem;
+  margin-top: 6px;
+}
+
+
+.toggle {
+  cursor: pointer;
+  border: none;
+  background: var(--accent);
+  color: var(--text);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.toggle:hover { opacity: .85; }
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+  gap: 16px;
+  margin: 28px 0;
+}
+
+label {
+  font-size: .85rem;
+  margin-bottom: 6px;
+  display: block;
+}
+
+select, input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--text);
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.vector-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+button {
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.primary {
+  background: var(--primary);
+  color: white;
+}
+
+.primary:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.secondary {
+  background: var(--accent);
+  color: var(--text);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.step {
+  background: var(--accent);
+  padding: 14px;
+  border-radius: 10px;
+  margin-top: 12px;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: stepIn 0.4s ease forwards;
+}
+
+@keyframes stepIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.math {
+  font-family: monospace;
+  font-size: .9rem;
+}
+</style>
+</head>
+
+<body>
+<main class="app" id="app">
+  <header>
+    <div>
+      <h1>Orthonormal Basis Finder</h1>
+      <p class="subtitle">Visual Gram–Schmidt Process</p>
+    </div>
+    <button class="toggle" id="themeToggle">🌙 Dark</button>
+  </header>
+
+  <section class="controls">
+    <div>
+      <label>Vectors</label>
+      <select id="numVectors">
+        <option value="2">2</option>
+        <option value="3" selected>3</option>
+      </select>
+    </div>
+    <div>
+      <label>Dimension</label>
+      <select id="vectorSize">
+        <option value="2">2</option>
+        <option value="3" selected>3</option>
+      </select>
+    </div>
+  </section>
+
+  <section id="vectors"></section>
+
+  <div class="actions">
+    <button class="primary" id="compute">Animate Gram–Schmidt</button>
+    <button class="secondary" onclick="location.reload()">Reset</button>
+  </div>
+
+  <section id="steps"></section>
+</main>
+
+<script>
+const vectorsEl = document.getElementById("vectors");
+const stepsEl = document.getElementById("steps");
+const numVectors = document.getElementById("numVectors");
+const vectorSize = document.getElementById("vectorSize");
+
+
+const toggle = document.getElementById("themeToggle");
+toggle.onclick = () => {
+  const app = document.documentElement;
+  const dark = app.getAttribute("data-theme") === "dark";
+  app.setAttribute("data-theme", dark ? "light" : "dark");
+  toggle.textContent = dark ? "🌙 Dark" : "☀️ Light";
+};
+
+
+function render() {
+  vectorsEl.innerHTML = "";
+  for (let i = 0; i < numVectors.value; i++) {
+    const row = document.createElement("div");
+    row.className = "vector-row";
+    for (let j = 0; j < vectorSize.value; j++) {
+      const input = document.createElement("input");
+      input.type = "number";
+      input.placeholder = `v${i+1}${j+1}`;
+      row.appendChild(input);
+    }
+    vectorsEl.appendChild(row);
+  }
+}
+numVectors.onchange = vectorSize.onchange = render;
+render();
+
+
+document.getElementById("compute").onclick = () => {
+  stepsEl.innerHTML = "";
+  let delay = 0;
+
+  [...vectorsEl.children].forEach((row, i) => {
+    setTimeout(() => {
+      const step = document.createElement("div");
+      step.className = "step";
+      step.innerHTML = `
+        <strong>Step ${i+1}</strong>
+        <div class="math">
+          u<sub>${i+1}</sub> = v<sub>${i+1}</sub> − projections onto previous vectors
+        </div>`;
+      stepsEl.appendChild(step);
+    }, delay);
+    delay += 600;
+  });
+
+  setTimeout(() => {
+    const step = document.createElement("div");
+    step.className = "step";
+    step.innerHTML = `
+      <strong>Normalization</strong>
+      <div class="math">
+        e<sub>i</sub> = u<sub>i</sub> / ||u<sub>i</sub>||
+      </div>`;
+    stepsEl.appendChild(step);
+  }, delay + 400);
+};
+</script>
+</body>
+</html>
